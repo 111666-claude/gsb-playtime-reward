@@ -1,7 +1,7 @@
 """在线时长档位奖励：按真实时间累计在线时长、档位达标领取、跨服务日刷新。
 
-缺陷：同刻重复推进会重复累计、达标用大于而不是不小于、领取不幂等、跨服务日不刷新、
-一次跨多档只认最后一个达标档、每次查询全扫玩家表。
+缺陷：同刻重复推进会重复累计、推进时间回退照收、达标用大于、领取不幂等、
+没有每日领取配额、跨服务日不刷新、一次跨多档只认最后一个、每次查询全扫玩家表。
 """
 
 MINUTE_MS = 60000
@@ -10,22 +10,24 @@ MINUTE_MS = 60000
 class Rewards:
     """在线时长奖励台账。"""
 
-    def __init__(self, tiers):
+    def __init__(self, tiers, max_claims=2):
         self.tiers = list(tiers)
+        self.max_claims = max_claims
         self.players = {}
         self.scanned = 0
 
     def _state(self, player):
         state = self.players.get(player)
         if state is None:
-            state = {"last": 0, "played": 0, "claimed": set(), "day": 1}
+            state = {"last": 0, "played": 0, "claimed": set(), "day": 1, "claims": 0}
             self.players[player] = state
         return state
 
     def tick(self, player, now_ms, online):
-        """按真实时间推进在线时长。缺陷：不推进 last，同一时刻会被反复累计。"""
+        """推进在线时长。缺陷：不推进 last、时间回退也照收。"""
         state = self._state(player)
         state["played"] += now_ms - state["last"]
+        return True
 
     def played_ms(self, player):
         """累计在线毫秒。缺陷：每次全扫玩家表。"""
@@ -45,7 +47,7 @@ class Rewards:
         return [last]
 
     def claim(self, player, tier):
-        """领取档位。缺陷：不幂等、不校验档位是否达标。"""
+        """领取档位。缺陷：不幂等、不看每日领取配额。"""
         self._state(player)["claimed"].add(tier)
         return True
 

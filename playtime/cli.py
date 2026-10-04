@@ -7,46 +7,55 @@ from .core import Rewards
 
 def build_parser():
     parser = argparse.ArgumentParser(prog="playtime-reward", description="在线时长档位奖励")
-    parser.add_argument("--sample", default="repeat", help="repeat / exact / dup / day / multi / scan")
+    parser.add_argument("--sample", default="repeat",
+                        help="repeat / ooo / quota / day / dup / multi / scan")
     return parser
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
     if args.sample == "repeat":
-        book = Rewards([(1, 100)])
+        book = Rewards([(1, 100)], max_claims=2)
         book.tick("p", 1000, True)
         book.tick("p", 1000, True)
         print("played=%d" % book.played_ms("p"))
-    elif args.sample == "exact":
-        book = Rewards([(1, 100)])
+    elif args.sample == "ooo":
+        book = Rewards([(1, 100)], max_claims=2)
         book.tick("p", 60000, True)
-        print("claimable=%d" % len(book.claimable("p")))
-    elif args.sample == "dup":
-        book = Rewards([(1, 100)])
-        book.tick("p", 60000, True)
+        second = book.tick("p", 1000, True)
+        print("second=%s played=%d" % (str(second).lower(), book.played_ms("p")))
+    elif args.sample == "quota":
+        book = Rewards([(1, 100), (2, 200), (3, 300)], max_claims=2)
+        book.tick("p", 180000, True)
         book.claim("p", 0)
-        second = book.claim("p", 0)
-        print("second=%s claimed=%d" % (str(second).lower(), len(book.claimed("p"))))
+        book.claim("p", 1)
+        third = book.claim("p", 2)
+        print("third=%s claimed=%d" % (str(third).lower(), len(book.claimed("p"))))
     elif args.sample == "day":
-        book = Rewards([(1, 100)])
+        book = Rewards([(1, 100)], max_claims=2)
         book.tick("p", 60000, True)
         book.claim("p", 0)
         book.reset_day("p", 2)
         print("claimed=%d" % len(book.claimed("p")))
+    elif args.sample == "dup":
+        book = Rewards([(1, 100)], max_claims=2)
+        book.tick("p", 60000, True)
+        book.claim("p", 0)
+        second = book.claim("p", 0)
+        print("second=%s claimed=%d" % (str(second).lower(), len(book.claimed("p"))))
     elif args.sample == "multi":
-        book = Rewards([(1, 100), (2, 200), (3, 300)])
+        book = Rewards([(1, 100), (2, 200), (3, 300)], max_claims=2)
         book.tick("p", 180000, True)
         print("claimable=%d" % len(book.claimable("p")))
     elif args.sample == "scan":
-        book = Rewards([(1, 100)])
+        book = Rewards([(1, 100)], max_claims=2)
         for index in range(3000):
             book.tick("p-%d" % index, 60000, True)
         for _ in range(3000):
             book.claimable("p-0")
         print("scanned=%d" % book.scanned_count())
     else:
-        raise SystemExit("需要 --sample repeat|exact|dup|day|multi|scan")
+        raise SystemExit("需要 --sample repeat|ooo|quota|day|dup|multi|scan")
     return 0
 
 
